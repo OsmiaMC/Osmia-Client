@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://github.com/OsmiaMC/Osmia-Client/blob/main/images/osmia_title.png?raw=true" alt="">
+  <img src="" alt="https://github.com/OsmiaMC/Osmia-Client/blob/main/images/osmia_title.png?raw=true">
 </p>
 
 <h2 align="center">Welcome to Osmia!</h2>
