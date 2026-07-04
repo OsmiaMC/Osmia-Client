@@ -1,0 +1,85 @@
+plugins {
+	id 'net.fabricmc.fabric-loom' version "${loom_version}"
+	id 'maven-publish'
+}
+
+version = project.mod_version
+group = project.maven_group
+
+base {
+	archivesName = project.archives_base_name
+}
+
+repositories {
+	exclusiveContent {
+		forRepository {
+			maven {
+				name = 'Modrinth'
+				url = 'https://api.modrinth.com/maven'
+			}
+		}
+		filter {
+			includeGroup 'maven.modrinth'
+		}
+	}
+}
+
+loom {
+	splitEnvironmentSourceSets()
+
+	runs {
+		client {
+			vmArg '-Ddevauth.enabled=1'
+			vmArg '-Ddevauth.account=osmia'
+			vmArg '-Ddevauth.microsoft.oauth2.grant-flow=device-code'
+		}
+	}
+
+	mods {
+		osmia {
+			sourceSet sourceSets.main
+			sourceSet sourceSets.client
+		}
+	}
+}
+
+dependencies {
+	minecraft "com.mojang:minecraft:${project.minecraft_version}"
+	implementation "net.fabricmc:fabric-loader:${project.loader_version}"
+	implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+
+	localRuntime 'net.litetex.mcm:dev-auth-neo:1.1.1'
+	localRuntime 'maven.modrinth:viafabricplus:4.6.1'
+	localRuntime 'maven.modrinth:no-telemetry:1.10.0'
+	include 'maven.modrinth:no-telemetry:1.10.0'
+}
+
+def modVersion = version
+
+processResources {
+	inputs.property 'version', modVersion
+
+	filesMatching('fabric.mod.json') {
+		expand version: modVersion
+	}
+}
+
+tasks.withType(JavaCompile).configureEach {
+	options.encoding = 'UTF-8'
+	options.release = 25
+	options.compilerArgs += ['-Xlint:all', '-Xlint:-processing']
+}
+
+java {
+	withSourcesJar()
+	sourceCompatibility = JavaVersion.VERSION_25
+	targetCompatibility = JavaVersion.VERSION_25
+}
+
+publishing {
+	publications {
+		create('mavenJava', MavenPublication) {
+			from components.java
+		}
+	}
+}

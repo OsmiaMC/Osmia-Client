@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "id": "osmia",
+  "version": "${version}",
+  "name": "Osmia",
+  "description": "A lightweight PvP-focused Minecraft client.",
+  "authors": [
+    "novaki-o"
+  ],
+  "environment": "client",
+  "entrypoints": {
+    "client": [
+      "dev.osmia.OsmiaClient"
+    ]
+  },
+  "mixins": [
+    {
+      "config": "osmia.client.mixins.json",
+      "environment": "client"
+    }
+  ],
+  "depends": {
+    "fabricloader": ">=0.19.3",
+    "minecraft": "~26.2",
+    "java": ">=25",
+    "fabric-api": "*"
+  }
+}
