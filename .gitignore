@@ -5,6 +5,7 @@
 /.idea/
 /.vscode/
 *.jar
+!/gradle/wrapper/gradle-wrapper.jar
 *.log
 *.tmp
 *.bak
@@ -15,5 +16,3 @@ Thumbs.db
 *.class
 out/
 node_modules/
-build.yml
-gradle-wrapper.properties

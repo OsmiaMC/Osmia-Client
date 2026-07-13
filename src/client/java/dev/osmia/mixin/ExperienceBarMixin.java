@@ -1,6 +1,7 @@
 package dev.osmia.mixin;
 
-import dev.osmia.config.OsmiaConfig;
+import dev.osmia.OsmiaClient;
+import dev.osmia.module.impl.visual.HudModule;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.contextualbar.ExperienceBar;
@@ -17,7 +18,7 @@ public abstract class ExperienceBarMixin {
 			DeltaTracker deltaTracker,
 			CallbackInfo callback
 	) {
-		if (OsmiaConfig.isHudEnabled()) {
+		if (OsmiaClient.modules().get(HudModule.class).isEnabled()) {
 			callback.cancel();
 		}
 	}
@@ -28,7 +29,7 @@ public abstract class ExperienceBarMixin {
 			DeltaTracker deltaTracker,
 			CallbackInfo callback
 	) {
-		if (OsmiaConfig.isHudEnabled()) {
+		if (OsmiaClient.modules().get(HudModule.class).isEnabled()) {
 			callback.cancel();
 		}
 	}

@@ -33,23 +33,35 @@ public final class OsmiaRoundedRect {
 			OsmiaClient.MOD_ID, "core/smooth_rounded_rect"
 	);
 
-	private static final RenderPipeline PIPELINE = RenderPipelines.register(
-			RenderPipeline.builder(RenderPipelines.GUI_SNIPPET)
-					.withLocation(Identifier.fromNamespaceAndPath(
-							OsmiaClient.MOD_ID, "pipeline/smooth_rounded_rect"
-					))
-					.withVertexShader(SHADER)
-					.withFragmentShader(SHADER)
-					.withVertexBinding(0, VERTEX_FORMAT)
-					.withPrimitiveTopology(PrimitiveTopology.QUADS)
-					.withCull(false)
-					.build()
-	);
+	private static RenderPipeline pipeline;
 
 	private OsmiaRoundedRect() {
 	}
 
 	public static void initialize() {
+		if (pipeline != null) {
+			return;
+		}
+
+		pipeline = RenderPipelines.register(
+				RenderPipeline.builder(RenderPipelines.GUI_SNIPPET)
+						.withLocation(Identifier.fromNamespaceAndPath(
+								OsmiaClient.MOD_ID, "pipeline/smooth_rounded_rect"
+						))
+						.withVertexShader(SHADER)
+						.withFragmentShader(SHADER)
+						.withVertexBinding(0, VERTEX_FORMAT)
+						.withPrimitiveTopology(PrimitiveTopology.QUADS)
+						.withCull(false)
+						.build()
+		);
+	}
+
+	private static RenderPipeline pipeline() {
+		if (pipeline == null) {
+			throw new IllegalStateException("Rounded rectangle renderer is not initialized");
+		}
+		return pipeline;
 	}
 
 	public static void fill(
@@ -178,7 +190,7 @@ public final class OsmiaRoundedRect {
 
 		@Override
 		public RenderPipeline pipeline() {
-			return PIPELINE;
+			return OsmiaRoundedRect.pipeline();
 		}
 
 		@Override

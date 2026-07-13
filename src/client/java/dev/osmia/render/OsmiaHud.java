@@ -1,6 +1,6 @@
 package dev.osmia.render;
 
-import dev.osmia.config.OsmiaConfig;
+import dev.osmia.module.impl.visual.HudModule;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElement;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements;
@@ -17,6 +17,7 @@ public final class OsmiaHud {
 
 	private static final int HOTBAR_BACKGROUND = 0x80000000;
 	private static final int SELECTED_SLOT_TINT = 0x80FFFFFF;
+	private static final int ABSORPTION_FILL = 0xFFFFCC33;
 	private static final BarStyle HEALTH_STYLE = new BarStyle(
 			0xFFFF2D2D,
 			0x66000000,
@@ -29,7 +30,6 @@ public final class OsmiaHud {
 			0xFFFFC26B,
 			0xFFFFE066
 	);
-
 	private static final int SLOT_SIZE = 20;
 	private static final int SLOT_COUNT = 9;
 	private static final int HOTBAR_WIDTH = SLOT_SIZE * SLOT_COUNT;
@@ -38,22 +38,24 @@ public final class OsmiaHud {
 	private static final int BAR_CORNER = 4;
 	private static final int BAR_GAP_ABOVE_HOTBAR = 3;
 	private static final int BAR_CENTER_GAP = 2;
+	private final HudModule hudModule;
 
-	private OsmiaHud() {
+	public OsmiaHud(HudModule hudModule) {
+		this.hudModule = hudModule;
 	}
 
-	public static void initialize() {
+	public void register() {
 		HudElementRegistry.replaceElement(
 				VanillaHudElements.HOTBAR,
-				replaceWhenEnabled(OsmiaHud::renderHotbar)
+				replaceWhenEnabled(this::renderHotbar)
 		);
 		HudElementRegistry.replaceElement(
 				VanillaHudElements.HEALTH_BAR,
-				replaceWhenEnabled(OsmiaHud::renderHealthBar)
+				replaceWhenEnabled(this::renderHealthBar)
 		);
 		HudElementRegistry.replaceElement(
 				VanillaHudElements.FOOD_BAR,
-				replaceWhenEnabled(OsmiaHud::renderHungerBar)
+				replaceWhenEnabled(this::renderHungerBar)
 		);
 		HudElementRegistry.replaceElement(
 				VanillaHudElements.EXPERIENCE_LEVEL,
@@ -61,11 +63,11 @@ public final class OsmiaHud {
 		);
 	}
 
-	private static Function<HudElement, HudElement> replaceWhenEnabled(
+	private Function<HudElement, HudElement> replaceWhenEnabled(
 			Consumer<GuiGraphicsExtractor> renderer
 	) {
 		return original -> (graphics, deltaTracker) -> {
-			if (OsmiaConfig.isHudEnabled()) {
+			if (hudModule.isEnabled()) {
 				renderer.accept(graphics);
 			} else {
 				original.extractRenderState(graphics, deltaTracker);
@@ -73,15 +75,15 @@ public final class OsmiaHud {
 		};
 	}
 
-	private static Function<HudElement, HudElement> hideWhenEnabled() {
+	private Function<HudElement, HudElement> hideWhenEnabled() {
 		return original -> (graphics, deltaTracker) -> {
-			if (!OsmiaConfig.isHudEnabled()) {
+			if (!hudModule.isEnabled()) {
 				original.extractRenderState(graphics, deltaTracker);
 			}
 		};
 	}
 
-	private static void renderHotbar(GuiGraphicsExtractor graphics) {
+	private void renderHotbar(GuiGraphicsExtractor graphics) {
 		LocalPlayer player = MINECRAFT.player;
 		if (player == null) {
 			return;
@@ -122,7 +124,7 @@ public final class OsmiaHud {
 		}
 	}
 
-	private static void renderHealthBar(GuiGraphicsExtractor graphics) {
+	private void renderHealthBar(GuiGraphicsExtractor graphics) {
 		LocalPlayer player = MINECRAFT.player;
 		if (player == null) {
 			return;
@@ -132,13 +134,14 @@ public final class OsmiaHud {
 		float health = Math.min(player.getHealth(), maxHealth);
 		float absorption = player.getAbsorptionAmount();
 		float maximum = maxHealth + absorption;
-		float ratio = maximum <= 0.0F ? 0.0F : (health + absorption) / maximum;
+		float healthRatio = maximum <= 0.0F ? 0.0F : health / maximum;
+		float combinedRatio = maximum <= 0.0F ? 0.0F : (health + absorption) / maximum;
 
 		int right = MINECRAFT.getWindow().getGuiScaledWidth() / 2 - BAR_CENTER_GAP;
-		drawStatBar(graphics, hotbarLeft(), right, ratio, 0.0F, HEALTH_STYLE);
+		drawHealthBar(graphics, hotbarLeft(), right, healthRatio, combinedRatio);
 	}
 
-	private static void renderHungerBar(GuiGraphicsExtractor graphics) {
+	private void renderHungerBar(GuiGraphicsExtractor graphics) {
 		LocalPlayer player = MINECRAFT.player;
 		if (player == null) {
 			return;
@@ -169,8 +172,28 @@ public final class OsmiaHud {
 			float overlayRatio,
 			BarStyle style
 	) {
-		int bottom = hotbarTop() - BAR_GAP_ABOVE_HOTBAR;
-		int top = bottom - BAR_HEIGHT;
+		drawStatBarAt(
+				graphics,
+				left,
+				defaultBarTop(),
+				right,
+				defaultBarBottom(),
+				fillRatio,
+				overlayRatio,
+				style
+		);
+	}
+
+	private static void drawStatBarAt(
+			GuiGraphicsExtractor graphics,
+			int left,
+			int top,
+			int right,
+			int bottom,
+			float fillRatio,
+			float overlayRatio,
+			BarStyle style
+	) {
 		int width = right - left;
 
 		fillRounded(graphics, left, top, right, bottom, BAR_CORNER, style.background());
@@ -197,6 +220,65 @@ public final class OsmiaHud {
 		);
 	}
 
+	private static void drawHealthBar(
+			GuiGraphicsExtractor graphics,
+			int left,
+			int right,
+			float healthRatio,
+			float combinedRatio
+	) {
+		int top = defaultBarTop();
+		int bottom = defaultBarBottom();
+		int width = right - left;
+		int healthRight = left + Math.round(width * clamp01(healthRatio));
+		int combinedRight = left + Math.round(width * clamp01(combinedRatio));
+
+		fillRounded(graphics, left, top, right, bottom, BAR_CORNER, HEALTH_STYLE.background());
+		if (healthRight > left) {
+			int roundedSides = OsmiaRoundedRect.ROUND_LEFT;
+			if (combinedRight <= healthRight) {
+				roundedSides |= OsmiaRoundedRect.ROUND_RIGHT;
+			}
+			OsmiaRoundedRect.fill(
+					graphics,
+					left,
+					top,
+					healthRight,
+					bottom,
+					BAR_CORNER,
+					HEALTH_STYLE.fill(),
+					roundedSides
+			);
+		}
+		if (combinedRight > healthRight) {
+			int roundedSides = OsmiaRoundedRect.ROUND_RIGHT;
+			if (healthRight == left) {
+				roundedSides |= OsmiaRoundedRect.ROUND_LEFT;
+			}
+			OsmiaRoundedRect.fill(
+					graphics,
+					healthRight,
+					top,
+					combinedRight,
+					bottom,
+					BAR_CORNER,
+					ABSORPTION_FILL,
+					roundedSides
+			);
+		}
+		OsmiaRoundedRect.stroke(
+				graphics,
+				left,
+				top,
+				right,
+				bottom,
+				BAR_CORNER,
+				HEALTH_STYLE.border(),
+				OsmiaRoundedRect.ROUND_BOTH,
+				1
+		);
+	}
+
 	private static void fillBarSection(
 			GuiGraphicsExtractor graphics,
 			int left,
@@ -218,6 +300,14 @@ public final class OsmiaHud {
 
 	private static int hotbarTop() {
 		return MINECRAFT.getWindow().getGuiScaledHeight() - SLOT_SIZE - 4;
+	}
+
+	private static int defaultBarBottom() {
+		return hotbarTop() - BAR_GAP_ABOVE_HOTBAR;
+	}
+
+	private static int defaultBarTop() {
+		return defaultBarBottom() - BAR_HEIGHT;
 	}
 
 	private static float clamp01(float value) {

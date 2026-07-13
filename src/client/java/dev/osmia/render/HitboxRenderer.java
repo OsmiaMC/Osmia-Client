@@ -1,6 +1,6 @@
 package dev.osmia.render;
 
-import dev.osmia.config.OsmiaConfig;
+import dev.osmia.module.impl.visual.HitboxModule;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
 import net.minecraft.client.Minecraft;
@@ -20,21 +20,24 @@ public final class HitboxRenderer {
 	private static final int REACH_COLOR = 0xFFFFA826;
 	private static final double MAX_RENDER_DISTANCE_SQUARED = 256.0D * 256.0D;
 
-	private HitboxRenderer() {
+	private final HitboxModule module;
+
+	public HitboxRenderer(HitboxModule module) {
+		this.module = module;
 	}
 
-	public static void initialize() {
-		LevelRenderEvents.BEFORE_GIZMOS.register(HitboxRenderer::render);
+	public void register() {
+		LevelRenderEvents.BEFORE_GIZMOS.register(this::render);
 	}
 
-	private static void render(LevelRenderContext context) {
-		if (!OsmiaConfig.isHitboxEnabled() || MINECRAFT.level == null || MINECRAFT.player == null) {
+	private void render(LevelRenderContext context) {
+		if (!module.isEnabled() || MINECRAFT.level == null || MINECRAFT.player == null) {
 			return;
 		}
 
 		float partialTick = MINECRAFT.getDeltaTracker().getGameTimeDeltaPartialTick(false);
-		boolean renderLookDirection = OsmiaConfig.showsHitboxLookDirection();
-		boolean renderReachDistance = OsmiaConfig.showsHitboxReachDistance();
+		boolean renderLookDirection = module.lookDirection().value();
+		boolean renderReachDistance = module.reachDistance().value();
 
 		Gizmos.TemporaryCollection collection =
 				context.levelRenderer().collectPerFrameRenderThreadGizmos();

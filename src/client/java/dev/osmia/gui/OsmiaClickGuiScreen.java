@@ -1,7 +1,10 @@
 package dev.osmia.gui;
 
 import dev.osmia.OsmiaClient;
-import dev.osmia.config.OsmiaConfig;
+import dev.osmia.module.ClientModule;
+import dev.osmia.module.ModuleCategory;
+import dev.osmia.module.ModuleManager;
+import dev.osmia.module.setting.BooleanSetting;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.KeyEvent;
@@ -17,20 +20,22 @@ public final class OsmiaClickGuiScreen extends Screen {
 	private static final int PANEL_START_Y = 10;
 	private static final int PANEL_SPACING = 6;
 
+	private final ModuleManager modules;
 	private final List<CategoryPanel> panels = new ArrayList<>();
 
-	public OsmiaClickGuiScreen() {
+	public OsmiaClickGuiScreen(ModuleManager modules) {
 		super(Component.literal("Osmia ClickGUI"));
+		this.modules = modules;
 	}
 
 	@Override
 	protected void init() {
 		panels.clear();
-		Category[] categories = Category.values();
+		ModuleCategory[] categories = ModuleCategory.values();
 		for (int index = 0; index < categories.length; index++) {
-			Category category = categories[index];
+			ModuleCategory category = categories[index];
 			int x = PANEL_START_X + index * (CategoryPanel.WIDTH + PANEL_SPACING);
-			CategoryPanel panel = new CategoryPanel(category.label, x, PANEL_START_Y);
+			CategoryPanel panel = new CategoryPanel(category.displayName(), x, PANEL_START_Y);
 			populate(panel, category);
 			panels.add(panel);
 		}
@@ -75,34 +80,16 @@ public final class OsmiaClickGuiScreen extends Screen {
 		return false;
 	}
 
-	private static void populate(CategoryPanel panel, Category category) {
-		if (category != Category.VISUAL) {
-			return;
-		}
-
-		panel.addToggle("HUD", OsmiaConfig::isHudEnabled, OsmiaConfig::toggleHud);
-		panel.addToggle("Hitbox", OsmiaConfig::isHitboxEnabled, OsmiaConfig::toggleHitbox)
-				.addSetting(
-						"Look Direction",
-						OsmiaConfig::showsHitboxLookDirection,
-						OsmiaConfig::toggleHitboxLookDirection
-				)
-				.addSetting(
-						"Reach Distance",
-						OsmiaConfig::showsHitboxReachDistance,
-						OsmiaConfig::toggleHitboxReachDistance
-				);
-	}
-
-	private enum Category {
-		VISUAL("Visual"),
-		PLAYER("Player"),
-		MISC("Misc");
-
-		private final String label;
-
-		Category(String label) {
-			this.label = label;
+	private void populate(CategoryPanel panel, ModuleCategory category) {
+		for (ClientModule module : modules.inCategory(category)) {
+			CategoryPanel.ToggleRow row = panel.addToggle(
+					module.displayName(),
+					module::isEnabled,
+					module::toggle
+			);
+			for (BooleanSetting setting : module.settings()) {
+				row.addSetting(setting.displayName(), setting::value, setting::toggle);
+			}
 		}
 	}
 }
