@@ -7,79 +7,114 @@ version = project.mod_version
 group = project.maven_group
 
 base {
-	archivesName = project.archives_base_name
+    archivesName = project.archives_base_name
 }
 
 repositories {
-	exclusiveContent {
-		forRepository {
-			maven {
-				name = 'Modrinth'
-				url = 'https://api.modrinth.com/maven'
-			}
-		}
-		filter {
-			includeGroup 'maven.modrinth'
-		}
-	}
+    mavenCentral()
+    maven { url 'https://jitpack.io' }
+    maven {
+        name = "modrinth"
+        url = "https://api.modrinth.com/maven"
+        content {
+            includeGroup "maven.modrinth"
+        }
+    }
 }
 
-loom {
-	splitEnvironmentSourceSets()
-
-	runs {
-		client {
-			vmArg '-Ddevauth.enabled=1'
-			vmArg '-Ddevauth.account=osmia'
-			vmArg '-Ddevauth.microsoft.oauth2.grant-flow=device-code'
-		}
-	}
-
-	mods {
-		osmia {
-			sourceSet sourceSets.main
-			sourceSet sourceSets.client
-		}
-	}
+configurations {
+    libImpl
+    modImpl
 }
 
 dependencies {
+    // Minecraft and Mappings
 	minecraft "com.mojang:minecraft:${project.minecraft_version}"
+	
+    // Fabric API and Loader
+    implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
 	implementation "net.fabricmc:fabric-loader:${project.loader_version}"
-	implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
 
-	localRuntime 'net.litetex.mcm:dev-auth-neo:1.1.1'
-	localRuntime 'maven.modrinth:viafabricplus:4.6.1'
-	localRuntime 'maven.modrinth:no-telemetry:1.10.0'
-	include 'maven.modrinth:no-telemetry:1.10.0'
+    // Rendering Mods
+    compileOnly("maven.modrinth:sodium:${project.sodium_version}") { transitive = false }
+    compileOnly("maven.modrinth:lithium:${project.lithium_version}") { transitive = false }
+    compileOnly("maven.modrinth:iris:${project.iris_version}") { transitive = false }
+    
+    implementation("maven.modrinth:sodium:${project.sodium_version}")
+	include("maven.modrinth:sodium:${project.sodium_version}")
+	
+    // Library Dependencies
+    implementation("io.netty:netty-handler-proxy:${project.netty_version}") { transitive = false }
+    implementation("io.netty:netty-codec-socks:${project.netty_version}") { transitive = false }
+
+    // Test Dependencies
+	testImplementation platform('org.junit:junit-bom:5.14.3')
+	testImplementation 'org.junit.jupiter:junit-jupiter'
+	testImplementation 'org.assertj:assertj-core:3.27.7'
+	testImplementation 'org.mockito:mockito-core:5.23.0'
+	testImplementation 'org.mockito:mockito-junit-jupiter:5.23.0'
+	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
-def modVersion = version
+test {
+    useJUnitPlatform()
+    testLogging {
+        events 'passed', 'skipped', 'failed'
+        exceptionFormat = 'full'
+    }
+}
 
+loom {
+	accessWidenerPath = file("src/main/resources/aoba.accesswidener")
+}
+    
 processResources {
-	inputs.property 'version', modVersion
+    inputs.property "version", project.version
 
-	filesMatching('fabric.mod.json') {
-		expand version: modVersion
-	}
+    filesMatching("fabric.mod.json") {
+        expand "version": project.version
+    }
 }
+
 
 tasks.withType(JavaCompile).configureEach {
-	options.encoding = 'UTF-8'
-	options.release = 25
-	options.compilerArgs += ['-Xlint:all', '-Xlint:-processing']
+    it.options.release = 25
 }
 
 java {
-	withSourcesJar()
-	sourceCompatibility = JavaVersion.VERSION_25
-	targetCompatibility = JavaVersion.VERSION_25
+    // Loom will automatically attach sourcesJar to a RemapSourcesJar task and to the "build" task
+    // if it is present.
+    // If you remove this line, sources will not be generated.
+    withSourcesJar()
+
+    sourceCompatibility = JavaVersion.VERSION_25
+    targetCompatibility = JavaVersion.VERSION_25
 }
 
+jar {
+    from("LICENSE") {
+        rename { "${it}_${project.base.archivesName.get()}" }
+    }
+    from {
+        configurations.libImpl.collect { it.isDirectory() ? it : zipTree(it) }
+    }
+    duplicatesStrategy(DuplicatesStrategy.EXCLUDE)
+}
+
+// configure the maven publication
 publishing {
-	publications {
-		create('mavenJava', MavenPublication) {
-			from components.java
-		}
-	}
+    publications {
+        create("mavenJava", MavenPublication) {
+            artifactId = project.archives_base_name
+            from components.java
+        }
+    }
+
+    // See https://docs.gradle.org/current/userguide/publishing_maven.html for information on how to set up publishing.
+    repositories {
+        // Add repositories to publish to here.
+        // Notice: This block does NOT have the same function as the block in the top level.
+        // The repositories here will be used for publishing your artifact, not for
+        // retrieving dependencies.
+    }
 }

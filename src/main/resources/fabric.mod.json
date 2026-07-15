@@ -1,28 +1,34 @@
 {
-  "schemaVersion": 1,
-  "id": "osmia",
-  "version": "${version}",
-  "name": "Osmia",
-  "description": "A lightweight PvP-focused Minecraft client.",
-  "authors": [
-    "novaki-o"
-  ],
-  "environment": "client",
-  "entrypoints": {
-    "client": [
-      "dev.osmia.OsmiaClient"
-    ]
-  },
-  "mixins": [
-    {
-      "config": "osmia.client.mixins.json",
-      "environment": "client"
-    }
-  ],
-  "depends": {
-    "fabricloader": ">=0.19.3",
-    "minecraft": "~26.2",
-    "java": ">=25",
-    "fabric-api": "*"
-  }
+	"schemaVersion": 1,
+	"id": "aoba",
+	"version": "1.0.0",
+	"name": "Aoba Client",
+	"description": "A Minecraft Fabric 26.2.x utility mod.",
+	"authors": [
+		"Cocolots"
+	],
+	"contact": {
+		"homepage": "https://aobaclient.com",
+		"sources": "https://github.com/coltonk9043/Aoba-Client",
+		"issues": "https://github.com/coltonk9043/Aoba-Client/issues",
+		"discord": "https://discord.gg/jEu6WfnyR6"
+	},
+	"license": "CC0-1.0",
+	"icon": "assets/aoba/icon.png",
+	"environment": "client",
+	"entrypoints": {
+		"main": [
+			"net.aoba.Aoba"
+		]
+	},
+	"mixins": [
+		"aoba.mixins.json"
+	],
+	"accessWidener" : "aoba.accesswidener",
+	"depends": {
+		"fabricloader": ">=0.19.3",
+		"minecraft": "~26.2",
+		"java": ">=25",
+		"fabric-api": "*"
+	}
 }

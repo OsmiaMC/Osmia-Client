@@ -1,0 +1,125 @@
+/*
+ * Aoba Hacked Client
+ * Copyright (C) 2019-2024 coltonk9043
+ *
+ * Licensed under the GNU General Public License, Version 3 or later.
+ * See <http://www.gnu.org/licenses/>.
+ */
+
+package net.aoba.managers;
+
+import java.lang.reflect.Field;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import com.mojang.logging.LogUtils;
+
+import net.aoba.api.IAddon;
+import net.aoba.command.Command;
+import net.aoba.command.InvalidSyntaxException;
+import net.aoba.command.commands.*;
+import net.aoba.settings.types.StringSetting;
+import net.minecraft.ChatFormatting;
+import net.minecraft.client.Minecraft;
+import net.minecraft.network.chat.Component;
+
+public class CommandManager {
+	private final Map<String, Command> commands = new HashMap<>();
+	private final List<String> commandHistory = new ArrayList<>();
+
+	public static StringSetting PREFIX = StringSetting.builder().id("aoba_prefix").displayName("Prefix")
+			.defaultValue(".aoba").build();
+
+	// Commands
+	public final CmdClickgui clickgui = new CmdClickgui();
+	public final CmdFont font = new CmdFont();
+	public final CmdHelp help = new CmdHelp();
+	public final CmdHud hud = new CmdHud();
+	public final CmdSpam spam = new CmdSpam();
+	public final CmdTP tp = new CmdTP();
+	public final CmdHistory history = new CmdHistory();
+	public final CmdDiscord discord = new CmdDiscord();
+
+	public CommandManager(List<IAddon> addons) {
+		SettingManager.registerSetting(PREFIX);
+
+		for (Field field : getClass().getDeclaredFields()) {
+			if (Command.class.isAssignableFrom(field.getType())) {
+				try {
+					Command cmd = (Command) field.get(this);
+					commands.put(cmd.getName(), cmd);
+				} catch (IllegalAccessException e) {
+					LogUtils.getLogger().error("Error initializing Aoba commands: " + e.getMessage());
+				}
+			}
+		}
+
+		addons.forEach(addon -> addon.commands().forEach(command -> {
+			if (!commands.containsKey(command.getName())) {
+				commands.put(command.getName(), command);
+			} else {
+				LogUtils.getLogger().warn("Warning: Duplicate command name \"" + command.getName()
+						+ "\" from addon. This command will not be registered.");
+			}
+		}));
+	}
+
+	/** Gets the command object from a syntax. */
+	public Command getCommandBySyntax(String syntax) {
+		return commands.get(syntax);
+	}
+
+	/**
+	 * Gets all of the Commands currently registered, including ones registered by
+	 * addons.
+	 */
+	public Map<String, Command> getCommands() {
+		return commands;
+	}
+
+	/**
+	 * Gets the total number of registered Commands, including ones registered by
+	 * addons
+	 */
+	public int getNumOfCommands() {
+		return commands.size();
+	}
+
+	/** Runs a command. */
+	public void command(String[] commandIn) {
+		try {
+			commandHistory.add(String.join(" ", commandIn));
+
+			Command command = commands.get(commandIn[1]);
+			if (command == null) {
+				sendChatMessage("Invalid Command! Type " + ChatFormatting.LIGHT_PURPLE + ".aoba help" + ChatFormatting.RESET
+						+ " for a list of commands.");
+			} else {
+				String[] parameterList = Arrays.copyOfRange(commandIn, 2, commandIn.length);
+				command.runCommand(parameterList);
+			}
+		} catch (ArrayIndexOutOfBoundsException e) {
+			sendChatMessage("Invalid Command! Type " + ChatFormatting.LIGHT_PURPLE + ".aoba help" + ChatFormatting.RESET
+					+ " for a list of commands.");
+		} catch (InvalidSyntaxException e) {
+			e.PrintToChat();
+		}
+	}
+
+	/** Returns the command history. */
+	public List<String> getCommandHistory() {
+		return commandHistory;
+	}
+
+	/** Prints a message into the Minecraft Chat. */
+	public static void sendChatMessage(String message) {
+		Minecraft mc = Minecraft.getInstance();
+		if (mc.gui != null) {
+			mc.gui.hud.getChat().addClientSystemMessage(Component.nullToEmpty(ChatFormatting.DARK_PURPLE + "[" + ChatFormatting.LIGHT_PURPLE + "Aoba"
+					+ ChatFormatting.DARK_PURPLE + "] " + ChatFormatting.RESET + message));
+		}
+	}
+}
